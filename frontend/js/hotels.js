@@ -119,6 +119,12 @@ class Hotels {
         try {
             const hotel = await API.getHotel(hotelId);
             
+            // Загружаем типы номеров и удобства
+            const [roomTypes, amenities] = await Promise.all([
+                API.request('/roomtypes/'),
+                API.request('/amenities/')
+            ]);
+            
             const stars = hotel.star_rating ? '⭐'.repeat(Math.floor(hotel.star_rating)) : '';
             
             container.innerHTML = `
@@ -155,6 +161,59 @@ class Hotels {
                                 <hr>
                                 
                                 <h4 class="mb-3">Доступные номера</h4>
+                                
+                                <!-- Фильтры номеров -->
+                                <div class="card mb-3 bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">
+                                            <i class="bi bi-funnel me-2"></i>Фильтры поиска номеров
+                                        </h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-9">
+                                                <label class="form-label">Тип номера</label>
+                                                <select class="form-select" id="roomtype-filter">
+                                                    <option value="">Все типы</option>
+                                                    ${roomTypes.map(rt => `
+                                                        <option value="${rt.roomtype_id}">${rt.type_name}</option>
+                                                    `).join('')}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label d-block">&nbsp;</label>
+                                                <button class="btn btn-primary w-100" id="apply-room-filters">
+                                                    <i class="bi bi-search me-1"></i>Применить
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row g-3 mt-2">
+                                            <div class="col-12">
+                                                <label class="form-label">Удобства (будут показаны номера, имеющие ВСЕ выбранные удобства)</label>
+                                                <div class="amenities-filter" id="amenities-filter">
+                                                    ${amenities.map(amenity => `
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input amenity-checkbox" type="checkbox" 
+                                                                id="amenity-${amenity.amenity_id}" 
+                                                                value="${amenity.amenity_id}">
+                                                            <label class="form-check-label" for="amenity-${amenity.amenity_id}">
+                                                                ${amenity.amenity_name}
+                                                            </label>
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row g-3 mt-2">
+                                            <div class="col-12">
+                                                <button class="btn btn-secondary btn-sm" id="reset-room-filters">
+                                                    <i class="bi bi-arrow-clockwise me-1"></i>Сбросить фильтры
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 <div id="hotel-rooms">
                                     <div class="text-center">
                                         <div class="spinner-border" role="status"></div>
@@ -166,6 +225,14 @@ class Hotels {
                 </div>
             `;
             
+            // Обработчики фильтров
+            document.getElementById('apply-room-filters').addEventListener('click', () => this.loadHotelRooms(hotelId));
+            document.getElementById('reset-room-filters').addEventListener('click', () => {
+                document.getElementById('roomtype-filter').value = '';
+                document.querySelectorAll('.amenity-checkbox').forEach(cb => cb.checked = false);
+                this.loadHotelRooms(hotelId);
+            });
+            
             // Загрузить номера отеля
             await this.loadHotelRooms(hotelId);
             
@@ -176,47 +243,114 @@ class Hotels {
     
     static async loadHotelRooms(hotelId) {
         const roomsContainer = document.getElementById('hotel-rooms');
+        roomsContainer.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div></div>';
         
         try {
-            const rooms = await API.getHotelRooms(hotelId);
+            // Собираем параметры фильтров
+            const roomtypeId = document.getElementById('roomtype-filter')?.value;
             
-            if (rooms.length === 0) {
-                roomsContainer.innerHTML = '<p class="text-muted">В данный момент нет доступных номеров</p>';
+            // Собираем выбранные удобства
+            const selectedAmenities = Array.from(document.querySelectorAll('.amenity-checkbox:checked'))
+                .map(cb => cb.value);
+            
+            // Формируем URL с параметрами
+            let url = `/rooms/hotel/${hotelId}`;
+            const params = [];
+            
+            if (roomtypeId) {
+                params.push(`roomtype_id=${roomtypeId}`);
+            }
+            
+            if (params.length > 0) {
+                url += '?' + params.join('&');
+            }
+            
+            const rooms = await API.request(url);
+            
+            // Фильтруем по удобствам на клиенте (номера должны иметь ВСЕ выбранные удобства)
+            let filteredRooms = rooms;
+            if (selectedAmenities.length > 0) {
+                filteredRooms = rooms.filter(room => {
+                    // Проверяем, что номер имеет ВСЕ выбранные удобства
+                    if (!room.amenities || room.amenities.length === 0) {
+                        return false;
+                    }
+                    
+                    const roomAmenityIds = room.amenities.map(a => String(a.amenity_id));
+                    
+                    // Проверяем что каждое выбранное удобство есть у номера
+                    return selectedAmenities.every(selectedId => 
+                        roomAmenityIds.includes(String(selectedId))
+                    );
+                });
+            }
+            
+            if (filteredRooms.length === 0) {
+                roomsContainer.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Номера не найдены по заданным критериям. Попробуйте изменить фильтры.
+                    </div>
+                `;
                 return;
             }
             
             const isAuthenticated = Auth.isAuthenticated();
             
-            roomsContainer.innerHTML = rooms.map(room => `
-                <div class="card mb-3">
+            roomsContainer.innerHTML = filteredRooms.map(room => `
+                <div class="card mb-3 room-card-item shadow-sm">
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-6">
-                                <h5 class="card-title">Номер ${room.room_number}</h5>
-                                <p class="card-text">${room.description || 'Описание номера отсутствует'}</p>
-                                <p class="card-text">
-                                    <small class="text-muted">Этаж: ${room.floor || 'Не указан'}</small>
-                                </p>
+                                <div class="d-flex align-items-center mb-2">
+                                    <h5 class="card-title mb-0 me-3">
+                                        <i class="bi bi-door-open me-2 text-primary"></i>Номер ${room.room_number}
+                                    </h5>
+                                    <span class="badge ${room.is_available ? 'bg-success' : 'bg-secondary'}">
+                                        ${room.is_available ? 'Доступен' : 'Занят'}
+                                    </span>
+                                </div>
+                                <p class="card-text text-muted">${room.description || 'Комфортабельный номер'}</p>
+                                <div class="room-details">
+                                    <p class="mb-1">
+                                        <i class="bi bi-building me-2 text-secondary"></i>
+                                        <small>Этаж: ${room.floor || 'Не указан'}</small>
+                                    </p>
+                                    ${room.roomtype_name ? `
+                                        <p class="mb-1">
+                                            <i class="bi bi-tag me-2 text-secondary"></i>
+                                            <small>Тип: <strong>${room.roomtype_name}</strong></small>
+                                        </p>
+                                    ` : ''}
+                                </div>
                             </div>
-                            <div class="col-md-3 text-end">
-                                <h4 class="text-primary">${formatPrice(room.price_per_night)}</h4>
-                                <p class="text-muted mb-2">за ночь</p>
-                                <span class="badge ${room.is_available ? 'bg-success' : 'bg-secondary'}">
-                                    ${room.is_available ? 'Доступен' : 'Занят'}
-                                </span>
+                            <div class="col-md-3 text-center">
+                                <div class="price-box p-3 bg-light rounded">
+                                    <h3 class="text-primary mb-1">${formatPrice(room.price_per_night)}</h3>
+                                    <p class="text-muted mb-0 small">за ночь</p>
+                                </div>
                             </div>
                             <div class="col-md-3 text-end">
                                 ${room.is_available && isAuthenticated ? `
-                                    <button class="btn btn-primary" onclick="Hotels.showBookingModal(${room.room_id}, '${room.room_number}', ${room.price_per_night})">
+                                    <button class="btn btn-primary w-100 mb-2" onclick="Hotels.showBookingModal(${room.room_id}, '${room.room_number}', ${room.price_per_night}, ${hotelId})">
                                         <i class="bi bi-calendar-check me-1"></i>
                                         Забронировать
                                     </button>
+                                    <button class="btn btn-outline-info btn-sm w-100" onclick="Hotels.showRoomDetails(${room.room_id})">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Подробнее
+                                    </button>
                                 ` : room.is_available && !isAuthenticated ? `
-                                    <button class="btn btn-outline-primary" onclick="Auth.showLoginModal()">
+                                    <button class="btn btn-primary w-100" onclick="Auth.showLoginModal()">
                                         <i class="bi bi-box-arrow-in-right me-1"></i>
                                         Войти для бронирования
                                     </button>
-                                ` : ''}
+                                ` : `
+                                    <button class="btn btn-secondary w-100" disabled>
+                                        <i class="bi bi-x-circle me-1"></i>
+                                        Недоступен
+                                    </button>
+                                `}
                             </div>
                         </div>
                     </div>
@@ -228,12 +362,87 @@ class Hotels {
         }
     }
     
+    static async showRoomDetails(roomId) {
+        try {
+            const room = await API.request(`/rooms/${roomId}`);
+            
+            const modalHtml = `
+                <div class="modal fade" id="roomDetailsModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-door-open me-2"></i>Номер ${room.room_number}
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="text-muted">Основная информация</h6>
+                                        <p><strong>Этаж:</strong> ${room.floor || 'Не указан'}</p>
+                                        <p><strong>Цена за ночь:</strong> ${formatPrice(room.price_per_night)}</p>
+                                        <p><strong>Статус:</strong> 
+                                            <span class="badge ${room.is_available ? 'bg-success' : 'bg-secondary'}">
+                                                ${room.is_available ? 'Доступен' : 'Занят'}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="text-muted">Описание</h6>
+                                        <p>${room.description || 'Описание отсутствует'}</p>
+                                    </div>
+                                </div>
+                                ${room.amenities && room.amenities.length > 0 ? `
+                                    <hr>
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <h6 class="text-muted">
+                                                <i class="bi bi-star me-2"></i>Удобства
+                                            </h6>
+                                            <div class="d-flex flex-wrap gap-2">
+                                                ${room.amenities.map(amenity => `
+                                                    <span class="badge bg-info">
+                                                        <i class="bi bi-check-circle me-1"></i>${amenity.amenity_name}
+                                                    </span>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                                ${room.is_available ? `
+                                    <button type="button" class="btn btn-primary" onclick="Hotels.showBookingModal(${room.room_id}, '${room.room_number}', ${room.price_per_night}, ${room.hotel_id}); bootstrap.Modal.getInstance(document.getElementById('roomDetailsModal')).hide();">
+                                        <i class="bi bi-calendar-check me-1"></i>Забронировать
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Удаляем старый модал если есть
+            const oldModal = document.getElementById('roomDetailsModal');
+            if (oldModal) oldModal.remove();
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            const modal = new bootstrap.Modal(document.getElementById('roomDetailsModal'));
+            modal.show();
+            
+        } catch (error) {
+            showError('Не удалось загрузить информацию о номере');
+        }
+    }
+    
     static showAddHotelModal() {
         // TODO: Реализовать модальное окно добавления отеля
         alert('Функция добавления отеля в разработке');
     }
     
-    static showBookingModal(roomId, roomNumber, pricePerNight) {
+    static showBookingModal(roomId, roomNumber, pricePerNight, hotelId) {
         // Создать модальное окно
         const modalHtml = `
             <div class="modal fade" id="bookingModal" tabindex="-1">
@@ -263,11 +472,6 @@ class Hotels {
                                 <div class="mb-3">
                                     <label for="num-guests" class="form-label">Количество гостей *</label>
                                     <input type="number" class="form-control" id="num-guests" min="1" max="10" value="1" required>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="special-requests" class="form-label">Особые пожелания</label>
-                                    <textarea class="form-control" id="special-requests" rows="3" placeholder="Например: поздний заезд, дополнительное полотенце..."></textarea>
                                 </div>
                                 
                                 <div id="total-price" class="alert alert-success d-none">
@@ -325,11 +529,17 @@ class Hotels {
             const checkIn = document.getElementById('check-in-date').value;
             const checkOut = document.getElementById('check-out-date').value;
             const guests = parseInt(document.getElementById('num-guests').value);
-            const specialRequests = document.getElementById('special-requests').value;
             const errorDiv = document.getElementById('booking-error');
             
+            // Валидация дат
+            if (new Date(checkOut) <= new Date(checkIn)) {
+                errorDiv.textContent = 'Дата выезда должна быть позже даты заезда';
+                errorDiv.classList.remove('d-none');
+                return;
+            }
+            
             try {
-                await bookings.createBooking(roomId, checkIn, checkOut, guests, specialRequests);
+                await bookings.createBooking(roomId, checkIn, checkOut, guests);
                 modal.hide();
                 showSuccess('Бронирование создано! Перенаправление на страницу бронирований...');
                 setTimeout(() => {

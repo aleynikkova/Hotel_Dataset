@@ -11,6 +11,14 @@ from datetime import date
 from pydantic import BaseModel
 
 # Temporary inline schemas until proper schemas are fixed
+class AmenityInfo(BaseModel):
+    amenity_id: int
+    amenity_name: str
+    description: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
 class RoomResponse(BaseModel):
     room_id: int
     hotel_id: int
@@ -20,6 +28,7 @@ class RoomResponse(BaseModel):
     price_per_night: Optional[float] = None
     is_available: bool
     description: Optional[str]
+    amenities: List[AmenityInfo] = []
     
     class Config:
         from_attributes = True
@@ -50,9 +59,13 @@ async def get_room(
     room_id: int,
     db: AsyncSession = Depends(get_db)
 ):
-    """Получить информацию о комнате по ID"""
+    """Получить информацию о комнате по ID с удобствами"""
+    from sqlalchemy.orm import selectinload
+    
     result = await db.execute(
-        select(Room).where(Room.room_id == room_id)
+        select(Room)
+        .options(selectinload(Room.amenities))
+        .where(Room.room_id == room_id)
     )
     room = result.scalar_one_or_none()
     
@@ -65,35 +78,15 @@ async def get_room(
 async def get_hotel_rooms(
     hotel_id: int,
     roomtype_id: Optional[int] = None,
-    min_price: Optional[float] = None,
-    max_price: Optional[float] = None,
-    available_from: Optional[date] = None,
-    available_to: Optional[date] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """Получить все комнаты отеля с фильтрами"""
-    query = select(Room).where(Room.hotel_id == hotel_id)
+    """Получить все комнаты отеля с удобствами (фильтрация только по типу)"""
+    from sqlalchemy.orm import selectinload
+    
+    query = select(Room).options(selectinload(Room.amenities)).where(Room.hotel_id == hotel_id)
     
     if roomtype_id:
         query = query.where(Room.roomtype_id == roomtype_id)
-    
-    if min_price:
-        query = query.where(Room.price_per_night >= min_price)
-    
-    if max_price:
-        query = query.where(Room.price_per_night <= max_price)
-    
-    # Если нужны доступные комнаты в определенные даты
-    if available_from and available_to:
-        # Подзапрос: комнаты, которые забронированы в этот период
-        booked_rooms_subquery = select(Booking.room_id).where(
-            Booking.check_in < available_to,
-            Booking.check_out > available_from,
-            Booking.status.in_(['confirmed', 'checked_in'])
-        )
-        
-        # Исключаем забронированные комнаты
-        query = query.where(Room.room_id.not_in(booked_rooms_subquery))
     
     result = await db.execute(query)
     rooms = result.scalars().all()
