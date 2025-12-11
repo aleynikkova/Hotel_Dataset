@@ -47,6 +47,31 @@ body {
     font-size: 0.85rem;
 }
 
+/* Карточки с эффектом при наведении */
+.hover-shadow {
+    transition: all 0.3s ease;
+}
+
+.hover-shadow:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-2px);
+}
+
+/* Звезды рейтинга */
+.star-rating {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.star {
+    transition: all 0.2s ease;
+}
+
+.star:hover {
+    transform: scale(1.2);
+}
+
 .room-card {
     border-left: 4px solid var(--primary-color);
 }
