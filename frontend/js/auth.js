@@ -83,8 +83,16 @@ class Auth {
             
             showSuccess('Вы успешно вошли в систему!');
             
-            // Перезагрузить страницу
-            App.loadPage('hotels');
+            // Перенаправить в зависимости от роли
+            if (userData.role === 'guest') {
+                window.location.href = 'my-bookings.html';
+            } else if (userData.role === 'hotel_admin') {
+                window.location.href = 'admin-hotel.html';
+            } else if (userData.role === 'system_admin') {
+                window.location.href = 'admin-system.html';
+            } else {
+                App.loadPage('hotels');
+            }
             
         } catch (error) {
             console.error('[Auth] Login error:', error);

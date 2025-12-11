@@ -6,7 +6,7 @@ from datetime import date, datetime
 from app.core.database import get_db
 from app.models.booking import Booking
 from app.models.room import Room
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.api.dependencies import get_current_user, require_role
 from pydantic import BaseModel, validator
 
@@ -16,7 +16,6 @@ class BookingCreateRequest(BaseModel):
     check_in_date: date
     check_out_date: date
     guests_count: int = 1
-    special_requests: Optional[str] = None
     
     @validator('check_out_date')
     def check_out_after_check_in(cls, v, values):
@@ -26,7 +25,6 @@ class BookingCreateRequest(BaseModel):
 
 class BookingUpdateRequest(BaseModel):
     status: Optional[str] = None
-    special_requests: Optional[str] = None
 
 class BookingResponse(BaseModel):
     booking_id: int
@@ -37,7 +35,6 @@ class BookingResponse(BaseModel):
     guests_count: Optional[int]
     total_price: Optional[float]
     status: str
-    special_requests: Optional[str]
     created_at: datetime
     updated_at: datetime
     
@@ -81,7 +78,7 @@ async def get_booking(
         raise HTTPException(status_code=404, detail="Бронирование не найдено")
     
     # Проверяем права доступа
-    if booking.user_id != current_user.user_id and current_user.role not in ["hotel_admin", "system_admin"]:
+    if booking.user_id != current_user.user_id and current_user.role not in [UserRole.hotel_admin, UserRole.system_admin]:
         raise HTTPException(status_code=403, detail="Нет доступа к этому бронированию")
     
     return booking
@@ -151,8 +148,7 @@ async def create_booking(
         check_out_date=booking_data.check_out_date,
         total_price=total_price,
         status='confirmed',
-        guests_count=booking_data.guests_count,
-        special_requests=booking_data.special_requests
+        guests_count=booking_data.guests_count
     )
     
     db.add(new_booking)
@@ -178,7 +174,7 @@ async def update_booking(
         raise HTTPException(status_code=404, detail="Бронирование не найдено")
     
     # Проверяем права доступа
-    if booking.user_id != current_user.user_id and current_user.role not in ["hotel_admin", "system_admin"]:
+    if booking.user_id != current_user.user_id and current_user.role not in [UserRole.hotel_admin, UserRole.system_admin]:
         raise HTTPException(status_code=403, detail="Нет доступа к этому бронированию")
     
     # Обновляем данные
@@ -207,7 +203,7 @@ async def cancel_booking(
         raise HTTPException(status_code=404, detail="Бронирование не найдено")
     
     # Проверяем права доступа
-    if booking.user_id != current_user.user_id and current_user.role not in ["hotel_admin", "system_admin"]:
+    if booking.user_id != current_user.user_id and current_user.role not in [UserRole.hotel_admin, UserRole.system_admin]:
         raise HTTPException(status_code=403, detail="Нет доступа к этому бронированию")
     
     # Проверяем, можно ли отменить
@@ -227,7 +223,7 @@ async def get_hotel_bookings(
     hotel_id: int,
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_role("hotel_admin", "system_admin"))
+    current_user: User = Depends(require_role(UserRole.hotel_admin, UserRole.system_admin))
 ):
     """Получить все бронирования отеля (только для администраторов)"""
     query = (

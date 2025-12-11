@@ -103,6 +103,67 @@ async def update_user(
     return user
 
 
+@router.post("/{user_id}/block", response_model=UserResponse)
+async def block_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.system_admin))
+):
+    """Блокировка пользователя (только системный админ)"""
+    result = await db.execute(select(User).where(User.user_id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    
+    user.is_active = False
+    await db.commit()
+    await db.refresh(user)
+    
+    return user
+
+
+@router.post("/{user_id}/unblock", response_model=UserResponse)
+async def unblock_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.system_admin))
+):
+    """Разблокировка пользователя (только системный админ)"""
+    result = await db.execute(select(User).where(User.user_id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    
+    user.is_active = True
+    await db.commit()
+    await db.refresh(user)
+    
+    return user
+
+
+@router.patch("/{user_id}/role", response_model=UserResponse)
+async def change_user_role(
+    user_id: int,
+    role: UserRole,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.system_admin))
+):
+    """Изменение роли пользователя (только системный админ)"""
+    result = await db.execute(select(User).where(User.user_id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    
+    user.role = role
+    await db.commit()
+    await db.refresh(user)
+    
+    return user
+
+
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,

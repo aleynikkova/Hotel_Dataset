@@ -16,7 +16,6 @@ class Booking(Base):
     status = Column(String(20), default="pending", index=True)
     total_price = Column(Numeric(10, 2))  # Рассчитывается автоматически триггером
     guests_count = Column(Integer, default=1)
-    special_requests = Column(Text)
     booking_date = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
     created_at = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
     updated_at = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))

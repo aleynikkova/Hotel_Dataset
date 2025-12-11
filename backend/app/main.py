@@ -37,14 +37,17 @@ async def health_check():
 
 
 # Подключение роутеров
-from .api.v1 import auth, users, hotels, rooms, bookings, reviews
+from .api.v1 import auth, users, hotels, rooms, bookings, reviews, roomtypes, amenities, reports
 
 app.include_router(auth.router, prefix=settings.API_V1_STR, tags=["auth"])
 app.include_router(users.router, prefix=settings.API_V1_STR, tags=["users"])
 app.include_router(hotels.router, prefix=settings.API_V1_STR, tags=["hotels"])
 app.include_router(rooms.router, prefix=settings.API_V1_STR, tags=["rooms"])
+app.include_router(roomtypes.router, prefix=settings.API_V1_STR, tags=["roomtypes"])
+app.include_router(amenities.router, prefix=settings.API_V1_STR, tags=["amenities"])
 app.include_router(bookings.router, prefix=settings.API_V1_STR, tags=["bookings"])
 app.include_router(reviews.router, prefix=settings.API_V1_STR, tags=["reviews"])
+app.include_router(reports.router, prefix=settings.API_V1_STR, tags=["reports"])
 
 
 if __name__ == "__main__":

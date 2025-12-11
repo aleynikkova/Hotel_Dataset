@@ -185,23 +185,38 @@ class Hotels {
                 return;
             }
             
+            const isAuthenticated = Auth.isAuthenticated();
+            
             roomsContainer.innerHTML = rooms.map(room => `
                 <div class="card mb-3">
                     <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-8">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
                                 <h5 class="card-title">Номер ${room.room_number}</h5>
                                 <p class="card-text">${room.description || 'Описание номера отсутствует'}</p>
                                 <p class="card-text">
                                     <small class="text-muted">Этаж: ${room.floor || 'Не указан'}</small>
                                 </p>
                             </div>
-                            <div class="col-md-4 text-end">
+                            <div class="col-md-3 text-end">
                                 <h4 class="text-primary">${formatPrice(room.price_per_night)}</h4>
-                                <p class="text-muted">за ночь</p>
+                                <p class="text-muted mb-2">за ночь</p>
                                 <span class="badge ${room.is_available ? 'bg-success' : 'bg-secondary'}">
                                     ${room.is_available ? 'Доступен' : 'Занят'}
                                 </span>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                ${room.is_available && isAuthenticated ? `
+                                    <button class="btn btn-primary" onclick="Hotels.showBookingModal(${room.room_id}, '${room.room_number}', ${room.price_per_night})">
+                                        <i class="bi bi-calendar-check me-1"></i>
+                                        Забронировать
+                                    </button>
+                                ` : room.is_available && !isAuthenticated ? `
+                                    <button class="btn btn-outline-primary" onclick="Auth.showLoginModal()">
+                                        <i class="bi bi-box-arrow-in-right me-1"></i>
+                                        Войти для бронирования
+                                    </button>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
@@ -217,4 +232,123 @@ class Hotels {
         // TODO: Реализовать модальное окно добавления отеля
         alert('Функция добавления отеля в разработке');
     }
+    
+    static showBookingModal(roomId, roomNumber, pricePerNight) {
+        // Создать модальное окно
+        const modalHtml = `
+            <div class="modal fade" id="bookingModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Забронировать номер ${roomNumber}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form id="booking-form">
+                            <div class="modal-body">
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Стоимость: <strong>${formatPrice(pricePerNight)}</strong> за ночь
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="check-in-date" class="form-label">Дата заезда *</label>
+                                    <input type="date" class="form-control" id="check-in-date" required min="${new Date().toISOString().split('T')[0]}">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="check-out-date" class="form-label">Дата выезда *</label>
+                                    <input type="date" class="form-control" id="check-out-date" required min="${new Date().toISOString().split('T')[0]}">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="num-guests" class="form-label">Количество гостей *</label>
+                                    <input type="number" class="form-control" id="num-guests" min="1" max="10" value="1" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="special-requests" class="form-label">Особые пожелания</label>
+                                    <textarea class="form-control" id="special-requests" rows="3" placeholder="Например: поздний заезд, дополнительное полотенце..."></textarea>
+                                </div>
+                                
+                                <div id="total-price" class="alert alert-success d-none">
+                                    <strong>Итого:</strong> <span id="total-amount">0</span> ₽
+                                </div>
+                                
+                                <div id="booking-error" class="alert alert-danger d-none"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    Подтвердить бронирование
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Удалить старый модал если есть
+        const oldModal = document.getElementById('bookingModal');
+        if (oldModal) oldModal.remove();
+        
+        // Добавить новый модал
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modalElement = document.getElementById('bookingModal');
+        const modal = new bootstrap.Modal(modalElement);
+        
+        // Расчёт стоимости
+        const calculateTotal = () => {
+            const checkIn = document.getElementById('check-in-date').value;
+            const checkOut = document.getElementById('check-out-date').value;
+            
+            if (checkIn && checkOut) {
+                const days = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
+                if (days > 0) {
+                    const total = days * pricePerNight;
+                    document.getElementById('total-amount').textContent = formatPrice(total);
+                    document.getElementById('total-price').classList.remove('d-none');
+                } else {
+                    document.getElementById('total-price').classList.add('d-none');
+                }
+            }
+        };
+        
+        document.getElementById('check-in-date').addEventListener('change', calculateTotal);
+        document.getElementById('check-out-date').addEventListener('change', calculateTotal);
+        
+        // Обработчик формы
+        document.getElementById('booking-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const checkIn = document.getElementById('check-in-date').value;
+            const checkOut = document.getElementById('check-out-date').value;
+            const guests = parseInt(document.getElementById('num-guests').value);
+            const specialRequests = document.getElementById('special-requests').value;
+            const errorDiv = document.getElementById('booking-error');
+            
+            try {
+                await bookings.createBooking(roomId, checkIn, checkOut, guests, specialRequests);
+                modal.hide();
+                showSuccess('Бронирование создано! Перенаправление на страницу бронирований...');
+                setTimeout(() => {
+                    window.location.href = 'my-bookings.html';
+                }, 1500);
+            } catch (error) {
+                errorDiv.textContent = error.message || 'Не удалось создать бронирование';
+                errorDiv.classList.remove('d-none');
+            }
+        });
+        
+        modal.show();
+    }
+}
+
+function formatPrice(price) {
+    return new Intl.NumberFormat('ru-RU', { 
+        style: 'currency', 
+        currency: 'RUB',
+        minimumFractionDigits: 0
+    }).format(price);
 }

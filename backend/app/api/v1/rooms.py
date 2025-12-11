@@ -5,7 +5,8 @@ from typing import List, Optional
 from app.core.database import get_db
 from app.models.room import Room, RoomType, Amenity, room_amenities
 from app.models.booking import Booking
-from app.api.dependencies import require_role
+from app.models.user import User, UserRole
+from app.api.dependencies import require_role, get_current_user
 from datetime import date
 from pydantic import BaseModel
 
@@ -103,7 +104,7 @@ async def get_hotel_rooms(
 async def create_room(
     room_data: RoomCreateRequest,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_role("hotel_admin", "system_admin"))
+    current_user: User = Depends(require_role(UserRole.hotel_admin, UserRole.system_admin))
 ):
     """Создать новую комнату (только для администраторов отеля)"""
     new_room = Room(**room_data.model_dump(exclude={'amenity_ids'}))
@@ -130,7 +131,7 @@ async def update_room(
     room_id: int,
     room_data: RoomUpdateRequest,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_role("hotel_admin", "system_admin"))
+    current_user: User = Depends(require_role(UserRole.hotel_admin, UserRole.system_admin))
 ):
     """Обновить информацию о комнате"""
     result = await db.execute(
@@ -169,7 +170,7 @@ async def update_room(
 async def delete_room(
     room_id: int,
     db: AsyncSession = Depends(get_db),
-    _=Depends(require_role("hotel_admin", "system_admin"))
+    current_user: User = Depends(require_role(UserRole.hotel_admin, UserRole.system_admin))
 ):
     """Удалить комнату"""
     result = await db.execute(
