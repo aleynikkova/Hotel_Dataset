@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.models.booking import Booking
 from app.models.room import Room
 from app.models.user import User
-from app.main import get_current_user, require_role
+from app.api.dependencies import get_current_user, require_role
 from pydantic import BaseModel, validator
 
 # Temporary inline schemas

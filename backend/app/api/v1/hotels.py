@@ -6,7 +6,7 @@ from typing import List
 from ...core.database import get_db
 from ...models import Hotel, User, UserRole
 from ...schemas.hotel import HotelResponse, HotelCreate, HotelUpdate
-from ...main import get_current_user, require_role
+from ..dependencies import get_current_user, require_role
 
 router = APIRouter(prefix="/hotels")
 

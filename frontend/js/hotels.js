@@ -166,11 +166,50 @@ class Hotels {
                 </div>
             `;
             
-            // Загрузить номера отеля (когда API будет готов)
-            // await this.loadHotelRooms(hotelId);
+            // Загрузить номера отеля
+            await this.loadHotelRooms(hotelId);
             
         } catch (error) {
             showError(container, error.message);
+        }
+    }
+    
+    static async loadHotelRooms(hotelId) {
+        const roomsContainer = document.getElementById('hotel-rooms');
+        
+        try {
+            const rooms = await API.getHotelRooms(hotelId);
+            
+            if (rooms.length === 0) {
+                roomsContainer.innerHTML = '<p class="text-muted">В данный момент нет доступных номеров</p>';
+                return;
+            }
+            
+            roomsContainer.innerHTML = rooms.map(room => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h5 class="card-title">Номер ${room.room_number}</h5>
+                                <p class="card-text">${room.description || 'Описание номера отсутствует'}</p>
+                                <p class="card-text">
+                                    <small class="text-muted">Этаж: ${room.floor || 'Не указан'}</small>
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <h4 class="text-primary">${formatPrice(room.price_per_night)}</h4>
+                                <p class="text-muted">за ночь</p>
+                                <span class="badge ${room.is_available ? 'bg-success' : 'bg-secondary'}">
+                                    ${room.is_available ? 'Доступен' : 'Занят'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+        } catch (error) {
+            roomsContainer.innerHTML = `<p class="text-danger">Ошибка загрузки номеров: ${error.message}</p>`;
         }
     }
     

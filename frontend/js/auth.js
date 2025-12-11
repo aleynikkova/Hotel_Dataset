@@ -60,13 +60,18 @@ class Auth {
         const errorDiv = document.getElementById('login-error');
         
         try {
+            console.log('[Auth] Attempting login...');
             const data = await API.login(email, password);
+            console.log('[Auth] Login response:', data);
             
             // Сохранить токен
             localStorage.setItem('access_token', data.access_token);
+            console.log('[Auth] Token saved:', data.access_token);
             
             // Получить данные пользователя
+            console.log('[Auth] Fetching user data...');
             const userData = await API.getCurrentUser();
+            console.log('[Auth] User data received:', userData);
             localStorage.setItem('user_data', JSON.stringify(userData));
             
             // Закрыть модал
@@ -82,6 +87,7 @@ class Auth {
             App.loadPage('hotels');
             
         } catch (error) {
+            console.error('[Auth] Login error:', error);
             errorDiv.textContent = error.message;
             errorDiv.classList.remove('d-none');
         }

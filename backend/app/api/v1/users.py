@@ -6,7 +6,7 @@ from typing import List
 from ...core.database import get_db
 from ...models import User, UserRole
 from ...schemas.user import UserResponse, UserCreate, UserUpdate
-from ...main import get_current_user, require_role
+from ..dependencies import get_current_user, require_role
 from ...core.security import get_password_hash
 
 router = APIRouter(prefix="/users")

@@ -6,10 +6,14 @@ class API {
     static async request(endpoint, options = {}) {
         const token = localStorage.getItem('access_token');
         
-        const headers = {
-            'Content-Type': 'application/json',
-            ...options.headers
-        };
+        console.log('[API Request]', endpoint, 'Token:', token ? 'present' : 'missing');
+        
+        const headers = options.headers || {};
+        
+        // Добавляем Content-Type только если не задан
+        if (!headers['Content-Type']) {
+            headers['Content-Type'] = 'application/json';
+        }
         
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
@@ -31,7 +35,7 @@ class API {
                     window.location.reload();
                 }
                 
-                const error = await response.json();
+                const error = await response.json().catch(() => ({}));
                 throw new Error(error.detail || 'Ошибка сервера');
             }
             
@@ -95,6 +99,17 @@ class API {
             method: 'PATCH',
             body: JSON.stringify(hotelData)
         });
+    }
+    
+    // Rooms endpoints
+    static async getHotelRooms(hotelId, params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        const query = queryString ? `?${queryString}` : '';
+        return await this.request(`/rooms/hotel/${hotelId}${query}`);
+    }
+    
+    static async getRoom(roomId) {
+        return await this.request(`/rooms/${roomId}`);
     }
     
     static async deleteHotel(hotelId) {

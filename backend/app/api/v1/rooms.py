@@ -5,7 +5,7 @@ from typing import List, Optional
 from app.core.database import get_db
 from app.models.room import Room, RoomType, Amenity, room_amenities
 from app.models.booking import Booking
-from app.main import require_role
+from app.api.dependencies import require_role
 from datetime import date
 from pydantic import BaseModel
 
@@ -16,7 +16,7 @@ class RoomResponse(BaseModel):
     roomtype_id: int
     room_number: str
     floor: Optional[int]
-    price_per_night: float
+    price_per_night: Optional[float] = None
     is_available: bool
     description: Optional[str]
     

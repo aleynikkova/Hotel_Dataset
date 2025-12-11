@@ -9,6 +9,7 @@ from ...core.security import verify_password, get_password_hash, create_access_t
 from ...core.config import settings
 from ...models import User, UserRole
 from ...schemas.user import UserRegister, UserResponse, Token
+from ..dependencies import get_current_user
 
 router = APIRouter(prefix="/auth")
 
@@ -73,7 +74,7 @@ async def login(
     # Создание токена
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.user_id, "email": user.email, "role": user.role.value},
+        data={"sub": str(user.user_id), "email": user.email, "role": user.role.value},
         expires_delta=access_token_expires
     )
     
@@ -82,7 +83,7 @@ async def login(
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
-    current_user: User = Depends(get_db)
+    current_user: User = Depends(get_current_user)
 ):
-    """Получение информации о текущем пользователе"""
+    """Получение информации о текущем пользователя"""
     return current_user
