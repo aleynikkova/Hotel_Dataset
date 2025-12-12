@@ -22,27 +22,73 @@ class Bookings {
         } catch (error) {
             console.error('[Bookings] Error loading bookings:', error);
             showError('Не удалось загрузить бронирования');
+            // Отображаем контейнер даже при ошибке
+            const container = document.getElementById('bookings-container');
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Не удалось загрузить бронирования. Попробуйте обновить страницу.
+                    </div>
+                `;
+            }
         }
     }
 
     async loadAdditionalInfo() {
+        // Если нет бронирований - выходим
+        if (!this.bookings || this.bookings.length === 0) {
+            return;
+        }
+        
         // Загружаем информацию о комнатах и отелях
         const roomIds = [...new Set(this.bookings.map(b => b.room_id))];
         
-        for (const roomId of roomIds) {
+        // Загружаем все комнаты параллельно
+        const roomPromises = roomIds.map(async (roomId) => {
             try {
                 const room = await API.request(`/rooms/${roomId}`);
                 this.rooms[roomId] = room;
-                
-                // Загружаем информацию об отеле
-                if (room.hotel_id && !this.hotels[room.hotel_id]) {
-                    const hotel = await API.request(`/hotels/${room.hotel_id}`);
-                    this.hotels[room.hotel_id] = hotel;
-                }
+                return room;
             } catch (error) {
                 console.error(`Error loading room ${roomId}:`, error);
+                // Создаем заглушку для комнаты
+                this.rooms[roomId] = { 
+                    room_id: roomId, 
+                    room_number: 'N/A',
+                    hotel_id: null
+                };
+                return null;
             }
-        }
+        });
+
+        // Ждем загрузки всех комнат
+        const rooms = await Promise.all(roomPromises);
+
+        // Собираем уникальные hotel_id из загруженных комнат
+        const hotelIds = [...new Set(rooms.filter(r => r && r.hotel_id).map(r => r.hotel_id))];
+
+        // Загружаем все отели параллельно
+        const hotelPromises = hotelIds.map(async (hotelId) => {
+            try {
+                const hotel = await API.request(`/hotels/${hotelId}`);
+                this.hotels[hotelId] = hotel;
+                return hotel;
+            } catch (error) {
+                console.error(`Error loading hotel ${hotelId}:`, error);
+                // Создаем заглушку для отеля
+                this.hotels[hotelId] = {
+                    hotel_id: hotelId,
+                    name: 'Загрузка не удалась',
+                    city: '',
+                    address: ''
+                };
+                return null;
+            }
+        });
+
+        // Ждем загрузки всех отелей
+        await Promise.all(hotelPromises);
     }
 
     renderMyBookings() {
@@ -230,11 +276,12 @@ class Bookings {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         const modalEl = document.getElementById('reviewModal');
         const modal = new bootstrap.Modal(modalEl);
-        modal.show();
-
+        
         // Обработчик звезд рейтинга
         let selectedRating = 0;
-        document.querySelectorAll('.star').forEach(star => {
+        const stars = document.querySelectorAll('.star');
+        
+        stars.forEach(star => {
             star.addEventListener('click', function() {
                 selectedRating = parseInt(this.dataset.rating);
                 document.getElementById('rating').value = selectedRating;
@@ -279,31 +326,59 @@ class Bookings {
         });
 
         // Обработчик отправки
-        document.getElementById('submitReview').addEventListener('click', async () => {
-            const rating = document.getElementById('rating').value;
-            const comment = document.getElementById('comment').value;
+        const submitBtn = document.getElementById('submitReview');
+        console.log('[Review] Submit button found:', submitBtn);
+        
+        if (submitBtn) {
+            submitBtn.addEventListener('click', async (e) => {
+                console.log('[Review] Submit button clicked!');
+                e.preventDefault();
+                
+                const rating = document.getElementById('rating').value;
+                const comment = document.getElementById('comment').value;
 
-            if (!rating || rating < 1 || rating > 5) {
-                showError('Пожалуйста, выберите оценку от 1 до 5');
-                return;
-            }
+                console.log('[Review] Rating:', rating, 'Comment:', comment);
 
-            try {
-                await API.request('/reviews/', 'POST', {
-                    booking_id: bookingId,
-                    hotel_id: hotelId,
-                    rating: parseInt(rating),
-                    comment: comment || null
-                });
+                if (!rating || rating < 1 || rating > 5) {
+                    showError('Пожалуйста, выберите оценку от 1 до 5');
+                    return;
+                }
 
-                modal.hide();
-                showSuccess('Спасибо за ваш отзыв!');
-                this.loadMyBookings();
-            } catch (error) {
-                console.error('[Bookings] Error submitting review:', error);
-                showError(error.message || 'Не удалось отправить отзыв');
-            }
-        });
+                // Блокируем кнопку во время отправки
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Отправка...';
+
+                try {
+                    console.log('[Review] Sending review for booking:', bookingId);
+                    
+                    const result = await API.createReview({
+                        booking_id: bookingId,
+                        rating: parseInt(rating),
+                        comment: comment
+                    });
+
+                    console.log('[Review] Review created successfully:', result);
+
+                    modal.hide();
+                    showSuccess('Спасибо за ваш отзыв!');
+                    
+                    // Перезагружаем бронирования
+                    await bookings.loadMyBookings();
+                } catch (error) {
+                    console.error('[Bookings] Error submitting review:', error);
+                    showError(error.message || 'Не удалось отправить отзыв');
+                    
+                    // Разблокируем кнопку в случае ошибки
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Отправить';
+                }
+            });
+        } else {
+            console.error('[Review] Submit button NOT found!');
+        }
+        
+        // Показываем модал после инициализации всех обработчиков
+        modal.show();
     }
 
     showBookingModal(booking) {

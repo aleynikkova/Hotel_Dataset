@@ -36,6 +36,14 @@ class API {
                 }
                 
                 const error = await response.json().catch(() => ({}));
+                console.error('[API] Error response:', error);
+                
+                // Если это массив ошибок валидации (422)
+                if (error.detail && Array.isArray(error.detail)) {
+                    const messages = error.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+                    throw new Error(messages);
+                }
+                
                 throw new Error(error.detail || 'Ошибка сервера');
             }
             
@@ -151,7 +159,7 @@ class API {
     }
     
     static async createReview(reviewData) {
-        return await this.request('/reviews', {
+        return await this.request('/reviews/', {
             method: 'POST',
             body: JSON.stringify(reviewData)
         });

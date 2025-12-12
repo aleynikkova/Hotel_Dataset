@@ -26,7 +26,7 @@ SELECT
 FROM hotels h
 LEFT JOIN users u ON h.admin_id = u.user_id
 LEFT JOIN rooms r ON h.hotel_id = r.hotel_id
-LEFT JOIN reviews rev ON h.hotel_id = rev.hotel_id AND rev.is_approved = TRUE
+LEFT JOIN reviews rev ON h.hotel_id = rev.hotel_id
 GROUP BY h.hotel_id, h.name, h.address, h.city, h.country, h.phone, 
          h.email, h.star_rating, h.description, h.is_active, u.first_name, u.last_name, u.email;
 
@@ -126,7 +126,6 @@ SELECT
     r.rating,
     r.comment,
     r.review_date,
-    r.is_approved,
     u.first_name || ' ' || u.last_name AS guest_name,
     h.hotel_id,
     h.name AS hotel_name,
@@ -135,9 +134,9 @@ SELECT
     rt.type_name AS room_type
 FROM reviews r
 INNER JOIN users u ON r.user_id = u.user_id
-INNER JOIN hotels h ON r.hotel_id = h.hotel_id
 INNER JOIN bookings b ON r.booking_id = b.booking_id
 INNER JOIN rooms rm ON b.room_id = rm.room_id
+INNER JOIN hotels h ON rm.hotel_id = h.hotel_id
 INNER JOIN roomtypes rt ON rm.roomtype_id = rt.roomtype_id
 ORDER BY r.review_date DESC;
 
@@ -163,7 +162,7 @@ SELECT
 FROM hotels h
 LEFT JOIN rooms r ON h.hotel_id = r.hotel_id
 LEFT JOIN bookings b ON r.room_id = b.room_id
-LEFT JOIN reviews rev ON h.hotel_id = rev.hotel_id AND rev.is_approved = TRUE
+LEFT JOIN reviews rev ON b.booking_id = rev.booking_id
 GROUP BY h.hotel_id, h.name, h.city, h.star_rating;
 
 COMMENT ON VIEW v_hotel_statistics IS 'Статистика по отелям: номера, бронирования, доход, рейтинг';
