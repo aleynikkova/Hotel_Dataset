@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
-from decimal import Decimal
 
 
 # Базовая схема отеля
@@ -12,7 +11,7 @@ class HotelBase(BaseModel):
     country: str = Field(..., min_length=1, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[str] = Field(None, max_length=255)
-    star_rating: Optional[Decimal] = Field(None, ge=1, le=5)
+    star_rating: Optional[float] = Field(None, ge=1, le=5)
     description: Optional[str] = None
 
 
@@ -29,7 +28,7 @@ class HotelUpdate(BaseModel):
     country: Optional[str] = Field(None, min_length=1, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[str] = Field(None, max_length=255)
-    star_rating: Optional[Decimal] = Field(None, ge=1, le=5)
+    star_rating: Optional[float] = Field(None, ge=1, le=5)
     description: Optional[str] = None
     admin_id: Optional[int] = None
     is_active: Optional[bool] = None
@@ -41,7 +40,7 @@ class HotelResponse(HotelBase):
     admin_id: Optional[int]
     is_active: bool
     created_at: datetime
-    average_rating: Optional[Decimal] = None
+    average_rating: Optional[float] = None
     reviews_count: Optional[int] = 0
     total_rooms: Optional[int] = 0
     

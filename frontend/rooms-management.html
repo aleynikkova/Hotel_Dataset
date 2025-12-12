@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление номерами - Админ отеля</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Навигация -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="hotel-admin.html">
+                <i class="bi bi-building me-2"></i>Управление отелем
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="hotel-admin.html">
+                            <i class="bi bi-speedometer2 me-1"></i>Панель управления
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="rooms-management.html">
+                            <i class="bi bi-door-open me-1"></i>Номера
+                        </a>
+                    </li>
+                    <li class="nav-item d-none" id="user-info-item">
+                        <span class="nav-link">
+                            <i class="bi bi-person-circle"></i>
+                            <span id="user-name"></span>
+                        </span>
+                    </li>
+                    <li class="nav-item d-none" id="logout-item">
+                        <a class="nav-link" href="#" id="nav-logout">
+                            <i class="bi bi-box-arrow-right me-1"></i>Выход
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <div class="container my-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="bi bi-door-open me-2"></i>
+                Управление номерами: <span id="hotel-name">Загрузка...</span>
+            </h1>
+            <button class="btn btn-primary" onclick="roomsManager.showAddRoomModal()">
+                <i class="bi bi-plus-circle me-2"></i>Добавить номер
+            </button>
+        </div>
+
+        <!-- Фильтры -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Тип номера</label>
+                        <select class="form-select" id="filter-roomtype">
+                            <option value="">Все типы</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-secondary w-100" onclick="roomsManager.resetFilters()">
+                            <i class="bi bi-arrow-clockwise"></i> Сбросить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Список номеров -->
+        <div id="rooms-container">
+            <div class="text-center my-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для добавления/редактирования номера -->
+    <div class="modal fade" id="roomModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="roomModalTitle">Добавить номер</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="roomForm">
+                        <input type="hidden" id="room-id">
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="room-number" class="form-label">Номер комнаты *</label>
+                                <input type="text" class="form-control" id="room-number" required>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="room-floor" class="form-label">Этаж</label>
+                                <input type="number" class="form-control" id="room-floor" min="0">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="room-type" class="form-label">Тип номера *</label>
+                                <select class="form-select" id="room-type" required>
+                                    <option value="">Выберите тип</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="room-price" class="form-label">Цена за ночь (₽) *</label>
+                                <input type="number" class="form-control" id="room-price" min="0" step="100" required>
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="room-available" checked>
+                                    <label class="form-check-label" for="room-available">
+                                        Номер доступен для бронирования
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <label class="form-label">Удобства</label>
+                                <div id="amenities-checkboxes" class="row g-2">
+                                    <!-- Загружаются динамически -->
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="roomsManager.saveRoom()">
+                        <i class="bi bi-check-circle me-1"></i>Сохранить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения удаления -->
+    <div class="modal fade" id="deleteRoomModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Подтверждение удаления</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Вы уверены, что хотите удалить номер <strong id="delete-room-number"></strong>?</p>
+                    <p class="text-danger mb-0">Это действие необратимо!</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-danger" onclick="roomsManager.confirmDeleteRoom()">
+                        <i class="bi bi-trash me-1"></i>Удалить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/rooms-manager.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = Auth.getCurrentUser();
+            if (!user || user.role !== 'hotel_admin') {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            document.getElementById('user-info-item').classList.remove('d-none');
+            document.getElementById('logout-item').classList.remove('d-none');
+            document.getElementById('user-name').textContent = `${user.first_name} ${user.last_name}`;
+
+            document.getElementById('nav-logout').addEventListener('click', (e) => {
+                e.preventDefault();
+                Auth.logout();
+            });
+
+            // Инициализация менеджера номеров
+            roomsManager.init();
+
+            // Фильтры
+            document.getElementById('filter-roomtype').addEventListener('change', () => roomsManager.applyFilters());
+        });
+    </script>
+</body>
+</html>

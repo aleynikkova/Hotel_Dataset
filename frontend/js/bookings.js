@@ -19,7 +19,6 @@ class Bookings {
             await this.loadAdditionalInfo();
             
             this.renderMyBookings();
-            this.updateStats();
         } catch (error) {
             console.error('[Bookings] Error loading bookings:', error);
             showError('Не удалось загрузить бронирования');
@@ -46,53 +45,6 @@ class Bookings {
         }
     }
 
-    updateStats() {
-        const statsContainer = document.getElementById('bookings-stats');
-        if (!statsContainer) return;
-
-        statsContainer.style.display = 'flex';
-        
-        const total = this.bookings.length;
-        const confirmed = this.bookings.filter(b => b.status === 'confirmed').length;
-        const pending = this.bookings.filter(b => b.status === 'pending').length;
-        const totalSpent = this.bookings
-            .filter(b => b.status !== 'cancelled')
-            .reduce((sum, b) => sum + (parseFloat(b.total_price) || 0), 0);
-
-        document.getElementById('total-bookings').textContent = total;
-        document.getElementById('confirmed-bookings').textContent = confirmed;
-        document.getElementById('pending-bookings').textContent = pending;
-        document.getElementById('total-spent').textContent = `${totalSpent.toFixed(0)} ₽`;
-    }
-
-    applyFilters() {
-        const statusFilter = document.getElementById('statusFilter')?.value || '';
-        const sortBy = document.getElementById('sortBy')?.value || 'date_desc';
-
-        // Фильтрация
-        this.filteredBookings = statusFilter 
-            ? this.bookings.filter(b => b.status === statusFilter)
-            : [...this.bookings];
-
-        // Сортировка
-        this.filteredBookings.sort((a, b) => {
-            switch (sortBy) {
-                case 'date_asc':
-                    return new Date(a.created_at) - new Date(b.created_at);
-                case 'date_desc':
-                    return new Date(b.created_at) - new Date(a.created_at);
-                case 'checkin_asc':
-                    return new Date(a.check_in_date) - new Date(b.check_in_date);
-                case 'checkin_desc':
-                    return new Date(b.check_in_date) - new Date(a.check_in_date);
-                default:
-                    return 0;
-            }
-        });
-
-        this.renderMyBookings();
-    }
-
     renderMyBookings() {
         const container = document.getElementById('bookings-container');
         if (!container) return;
@@ -116,7 +68,7 @@ class Bookings {
         const checkOut = new Date(booking.check_out_date).toLocaleDateString('ru-RU');
         const createdAt = new Date(booking.created_at).toLocaleDateString('ru-RU');
         const statusBadge = this.getStatusBadge(booking.status);
-        const canCancel = booking.status === 'confirmed' && new Date(booking.check_in_date) > new Date();
+        const canCancel = (booking.status === 'confirmed' || booking.status === 'pending') && new Date(booking.check_in_date) > new Date();
         
         // Получаем информацию о комнате и отеле
         const room = this.rooms[booking.room_id] || {};
@@ -179,16 +131,13 @@ class Bookings {
                         </div>
                         <div class="col-md-4 d-flex flex-column justify-content-between align-items-end">
                             <div class="btn-group-vertical w-100" role="group">
-                                <button class="btn btn-outline-primary" onclick="bookings.showBookingDetails(${booking.booking_id})">
-                                    <i class="bi bi-info-circle me-1"></i>Подробнее
-                                </button>
                                 ${canCancel ? `
-                                    <button class="btn btn-outline-danger mt-2" onclick="bookings.cancelBooking(${booking.booking_id})">
+                                    <button class="btn btn-outline-danger" onclick="bookings.cancelBooking(${booking.booking_id})">
                                         <i class="bi bi-x-circle me-1"></i>Отменить
                                     </button>
                                 ` : ''}
-                                ${booking.status === 'checked_out' && !booking.has_review ? `
-                                    <button class="btn btn-outline-success mt-2" onclick="bookings.addReview(${booking.booking_id}, ${room.hotel_id})">
+                                ${booking.status === 'completed' && !booking.review ? `
+                                    <button class="btn btn-outline-success ${canCancel ? 'mt-2' : ''}" onclick="bookings.addReview(${booking.booking_id}, ${room.hotel_id})">
                                         <i class="bi bi-star me-1"></i>Оставить отзыв
                                     </button>
                                 ` : ''}
@@ -206,7 +155,7 @@ class Bookings {
             'confirmed': { text: 'Подтверждено', class: 'bg-success' },
             'cancelled': { text: 'Отменено', class: 'bg-danger' },
             'checked_in': { text: 'Заселен', class: 'bg-info' },
-            'checked_out': { text: 'Выселен', class: 'bg-secondary' }
+            'completed': { text: 'Завершено', class: 'bg-secondary' }
         };
         return statuses[status] || { text: status, class: 'bg-secondary' };
     }
@@ -217,7 +166,9 @@ class Bookings {
         }
 
         try {
-            await API.request(`/bookings/${bookingId}`, 'DELETE');
+            await API.request(`/bookings/${bookingId}`, {
+                method: 'DELETE'
+            });
             showSuccess('Бронирование отменено');
             this.loadMyBookings();
         } catch (error) {
@@ -339,6 +290,7 @@ class Bookings {
 
             try {
                 await API.request('/reviews/', 'POST', {
+                    booking_id: bookingId,
                     hotel_id: hotelId,
                     rating: parseInt(rating),
                     comment: comment || null
@@ -421,12 +373,11 @@ class Bookings {
 
     async createBooking(roomId, checkIn, checkOut, guests, specialRequests = '') {
         try {
-            const booking = await API.request('/bookings', 'POST', {
+            const booking = await API.createBooking({
                 room_id: roomId,
                 check_in_date: checkIn,
                 check_out_date: checkOut,
-                number_of_guests: guests,
-                special_requests: specialRequests
+                guests_count: guests
             });
             showSuccess('Бронирование создано успешно!');
             return booking;

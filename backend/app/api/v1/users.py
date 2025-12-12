@@ -146,7 +146,7 @@ async def unblock_user(
 @router.patch("/{user_id}/role", response_model=UserResponse)
 async def change_user_role(
     user_id: int,
-    role: UserRole,
+    role_data: dict,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.system_admin))
 ):
@@ -157,7 +157,21 @@ async def change_user_role(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
     
-    user.role = role
+    # Обновляем роль
+    if 'role' in role_data:
+        user.role = UserRole(role_data['role'])
+    
+    # Обновляем hotel_id если это admin отеля
+    if 'hotel_id' in role_data:
+        user.hotel_id = role_data['hotel_id']
+    elif user.role == UserRole.hotel_admin and 'role' in role_data and role_data['role'] == 'hotel_admin':
+        # Если назначаем роль hotel_admin без указания hotel_id - не меняем существующий
+        pass
+    else:
+        # Если роль не hotel_admin - убираем привязку к отелю
+        if user.role != UserRole.hotel_admin:
+            user.hotel_id = None
+    
     await db.commit()
     await db.refresh(user)
     

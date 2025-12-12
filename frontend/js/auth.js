@@ -87,9 +87,9 @@ class Auth {
             if (userData.role === 'guest') {
                 window.location.href = 'my-bookings.html';
             } else if (userData.role === 'hotel_admin') {
-                window.location.href = 'admin-hotel.html';
+                window.location.href = 'hotel-admin.html';
             } else if (userData.role === 'system_admin') {
-                window.location.href = 'admin-system.html';
+                window.location.href = 'system-admin.html';
             } else {
                 App.loadPage('hotels');
             }
@@ -137,13 +137,8 @@ class Auth {
         localStorage.removeItem('access_token');
         localStorage.removeItem('user_data');
         
-        // Обновить UI
-        this.updateUI(null);
-        
-        showSuccess('Вы вышли из системы');
-        
-        // Перезагрузить главную страницу
-        App.loadPage('hotels');
+        // Перенаправить на главную страницу сразу
+        window.location.href = 'index.html';
     }
     
     static checkAuthStatus() {
@@ -215,5 +210,30 @@ class Auth {
     static hasRole(...roles) {
         const user = this.getCurrentUser();
         return user && roles.includes(user.role);
+    }
+
+    static checkUserActive() {
+        const user = this.getCurrentUser();
+        if (user && !user.is_active) {
+            return false;
+        }
+        return true;
+    }
+
+    static showBlockedMessage() {
+        const container = document.getElementById('app-content') || document.querySelector('.container');
+        if (container) {
+            container.innerHTML = `
+                <div class="alert alert-danger text-center mt-5">
+                    <h3><i class="bi bi-exclamation-triangle-fill me-2"></i>Аккаунт заблокирован</h3>
+                    <p class="mb-3">Извините, ваш аккаунт был заблокирован администратором.</p>
+                    <p class="mb-0">Для получения дополнительной информации обратитесь к системному администратору.</p>
+                    <hr>
+                    <button class="btn btn-primary" onclick="Auth.logout()">
+                        <i class="bi bi-box-arrow-right me-1"></i>Выйти
+                    </button>
+                </div>
+            `;
+        }
     }
 }

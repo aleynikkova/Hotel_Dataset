@@ -12,13 +12,8 @@ class App {
             this.loadPage('hotels');
         });
         
-        const bookingsLink = document.getElementById('nav-bookings');
-        if (bookingsLink) {
-            bookingsLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.loadPage('bookings');
-            });
-        }
+        // Ссылка на бронирования ведет на отдельную страницу my-bookings.html
+        // Не нужно перехватывать клик
         
         const adminLink = document.getElementById('nav-admin');
         if (adminLink) {
@@ -30,6 +25,12 @@ class App {
     }
     
     static loadPage(page) {
+        // Проверить, заблокирован ли пользователь
+        if (Auth.isAuthenticated() && !Auth.checkUserActive()) {
+            Auth.showBlockedMessage();
+            return;
+        }
+
         // Обновить активный пункт меню
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.remove('active');

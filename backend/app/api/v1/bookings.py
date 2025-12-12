@@ -26,6 +26,16 @@ class BookingCreateRequest(BaseModel):
 class BookingUpdateRequest(BaseModel):
     status: Optional[str] = None
 
+class UserInfo(BaseModel):
+    user_id: int
+    email: str
+    first_name: str
+    last_name: str
+    phone: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
 class BookingResponse(BaseModel):
     booking_id: int
     user_id: int
@@ -37,6 +47,22 @@ class BookingResponse(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class BookingWithUserResponse(BaseModel):
+    booking_id: int
+    user_id: int
+    room_id: int
+    check_in_date: date
+    check_out_date: date
+    guests_count: Optional[int]
+    total_price: Optional[float]
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    user: Optional[UserInfo] = None
     
     class Config:
         from_attributes = True
@@ -147,7 +173,7 @@ async def create_booking(
         check_in_date=booking_data.check_in_date,
         check_out_date=booking_data.check_out_date,
         total_price=total_price,
-        status='confirmed',
+        status='pending',
         guests_count=booking_data.guests_count
     )
     
@@ -218,7 +244,7 @@ async def cancel_booking(
     
     return {"message": "Бронирование успешно отменено"}
 
-@router.get("/hotel/{hotel_id}/all", response_model=List[BookingResponse])
+@router.get("/hotel/{hotel_id}/all", response_model=List[BookingWithUserResponse])
 async def get_hotel_bookings(
     hotel_id: int,
     status: Optional[str] = None,
@@ -226,8 +252,11 @@ async def get_hotel_bookings(
     current_user: User = Depends(require_role(UserRole.hotel_admin, UserRole.system_admin))
 ):
     """Получить все бронирования отеля (только для администраторов)"""
+    from sqlalchemy.orm import selectinload
+    
     query = (
         select(Booking)
+        .options(selectinload(Booking.user))
         .join(Room, Booking.room_id == Room.room_id)
         .where(Room.hotel_id == hotel_id)
     )

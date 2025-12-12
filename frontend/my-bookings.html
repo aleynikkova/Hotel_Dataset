@@ -54,75 +54,6 @@
             Мои бронирования
         </h1>
 
-        <!-- Фильтры -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label for="statusFilter" class="form-label">Статус</label>
-                        <select class="form-select" id="statusFilter">
-                            <option value="">Все</option>
-                            <option value="pending">Ожидает подтверждения</option>
-                            <option value="confirmed">Подтверждено</option>
-                            <option value="checked_in">Заселен</option>
-                            <option value="checked_out">Выселен</option>
-                            <option value="cancelled">Отменено</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="sortBy" class="form-label">Сортировка</label>
-                        <select class="form-select" id="sortBy">
-                            <option value="date_desc">По дате (новые)</option>
-                            <option value="date_asc">По дате (старые)</option>
-                            <option value="checkin_asc">По дате заезда ↑</option>
-                            <option value="checkin_desc">По дате заезда ↓</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <button class="btn btn-primary w-100" id="applyFilters">
-                            <i class="bi bi-funnel me-1"></i>Применить
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Статистика -->
-        <div class="row mb-4" id="bookings-stats" style="display: none;">
-            <div class="col-md-3">
-                <div class="card text-center bg-primary text-white">
-                    <div class="card-body">
-                        <h3 id="total-bookings">0</h3>
-                        <p class="mb-0">Всего бронирований</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center bg-success text-white">
-                    <div class="card-body">
-                        <h3 id="confirmed-bookings">0</h3>
-                        <p class="mb-0">Подтверждено</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center bg-warning text-white">
-                    <div class="card-body">
-                        <h3 id="pending-bookings">0</h3>
-                        <p class="mb-0">Ожидает</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center bg-info text-white">
-                    <div class="card-body">
-                        <h3 id="total-spent">0 ₽</h3>
-                        <p class="mb-0">Потрачено</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div id="bookings-container">
             <div class="text-center my-5">
                 <div class="spinner-border text-primary" role="status">
@@ -155,6 +86,20 @@
                 return;
             }
 
+            // Проверить, активен ли пользователь
+            if (!Auth.checkUserActive()) {
+                Auth.showBlockedMessage();
+                document.getElementById('user-info-item').classList.remove('d-none');
+                document.getElementById('logout-item').classList.remove('d-none');
+                document.getElementById('user-name').textContent = `${user.first_name} ${user.last_name}`;
+                document.getElementById('user-role').textContent = Auth.getRoleDisplay(user.role);
+                document.getElementById('nav-logout').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    Auth.logout();
+                });
+                return;
+            }
+
             // Обновить навигацию
             const userInfoItem = document.getElementById('user-info-item');
             const logoutItem = document.getElementById('logout-item');
@@ -164,11 +109,6 @@
             
             document.getElementById('user-name').textContent = `${user.first_name} ${user.last_name}`;
             document.getElementById('user-role').textContent = Auth.getRoleDisplay(user.role);
-
-            // Обработчики фильтров
-            document.getElementById('applyFilters')?.addEventListener('click', () => {
-                bookings.applyFilters();
-            });
 
             // Обработчик выхода
             document.getElementById('nav-logout').addEventListener('click', (e) => {

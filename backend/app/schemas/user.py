@@ -40,6 +40,7 @@ class UserResponse(UserBase):
     user_id: int
     role: UserRole
     is_active: bool
+    hotel_id: Optional[int] = None
     created_at: datetime
     
     class Config:

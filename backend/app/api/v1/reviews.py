@@ -11,7 +11,16 @@ from app.api.dependencies import get_current_user, require_role
 from pydantic import BaseModel, Field
 
 # Temporary inline schemas
+class UserInfo(BaseModel):
+    user_id: int
+    first_name: str
+    last_name: str
+    
+    class Config:
+        from_attributes = True
+
 class ReviewCreateRequest(BaseModel):
+    booking_id: int
     hotel_id: int
     rating: int = Field(ge=1, le=5)
     comment: Optional[str] = None
@@ -27,6 +36,7 @@ class ReviewResponse(BaseModel):
     rating: int
     comment: Optional[str]
     created_at: datetime
+    user: Optional[UserInfo] = None
     
     class Config:
         from_attributes = True
@@ -38,9 +48,12 @@ async def get_hotel_reviews(
     hotel_id: int,
     db: AsyncSession = Depends(get_db)
 ):
-    """Получить все отзывы об отеле"""
+    """Получить все отзывы об отеле с информацией о пользователях"""
+    from sqlalchemy.orm import selectinload
+    
     result = await db.execute(
         select(Review)
+        .options(selectinload(Review.user))
         .where(Review.hotel_id == hotel_id)
         .order_by(Review.created_at.desc())
     )
@@ -70,54 +83,49 @@ async def create_review(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Создать отзыв (только для гостей, которые останавливались в отеле)"""
-    # Проверяем, есть ли у пользователя завершенное бронирование в этом отеле
-    booking_check = await db.execute(
+    """Создать отзыв (только для завершенных бронирований)"""
+    # Проверяем, что бронирование существует и принадлежит пользователю
+    booking_result = await db.execute(
         select(Booking)
         .join(Room, Booking.room_id == Room.room_id)
         .where(
             and_(
+                Booking.booking_id == review_data.booking_id,
                 Booking.user_id == current_user.user_id,
-                Room.hotel_id == review_data.hotel_id,
-                Booking.status == 'completed',
-                Booking.check_out <= datetime.now().date()
+                Room.hotel_id == review_data.hotel_id
             )
         )
     )
-    completed_booking = booking_check.scalar_one_or_none()
+    booking = booking_result.scalar_one_or_none()
     
-    if not completed_booking:
+    if not booking:
+        raise HTTPException(
+            status_code=404,
+            detail="Бронирование не найдено"
+        )
+    
+    # Проверяем, что бронирование завершено
+    if booking.status != 'completed':
         raise HTTPException(
             status_code=403,
-            detail="Вы можете оставить отзыв только после проживания в отеле"
+            detail="Отзыв можно оставить только для завершенных бронирований"
         )
     
-    # Проверяем, не оставлял ли пользователь уже отзыв
+    # Проверяем, нет ли уже отзыва к этому бронированию
     existing_review_check = await db.execute(
-        select(Review).where(
-            and_(
-                Review.user_id == current_user.user_id,
-                Review.hotel_id == review_data.hotel_id
-            )
-        )
+        select(Review).where(Review.booking_id == review_data.booking_id)
     )
     existing_review = existing_review_check.scalar_one_or_none()
     
     if existing_review:
         raise HTTPException(
             status_code=400,
-            detail="Вы уже оставили отзыв об этом отеле"
-        )
-    
-    # Проверяем рейтинг
-    if review_data.rating < 1 or review_data.rating > 5:
-        raise HTTPException(
-            status_code=400,
-            detail="Рейтинг должен быть от 1 до 5"
+            detail="Отзыв уже оставлен для этого бронирования"
         )
     
     # Создаем отзыв
     new_review = Review(
+        booking_id=review_data.booking_id,
         user_id=current_user.user_id,
         hotel_id=review_data.hotel_id,
         rating=review_data.rating,
