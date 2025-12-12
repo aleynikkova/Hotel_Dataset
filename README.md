@@ -58,6 +58,8 @@
 
 ## Установка и запуск
 
+### ⚡ Для быстрого старта см. файл [QUICK_START.md](QUICK_START.md)
+
 ### Предварительные требования
 
 - Python 3.10+
@@ -73,19 +75,36 @@ cd КП_БД
 
 ### 2. Настройка базы данных
 
+**ВАЖНО:** База данных не пушится на GitHub! Нужно создать её локально.
+
+#### Автоматическая настройка (рекомендуется):
+
 ```bash
-# Создайте БД в PostgreSQL
+# Для macOS/Linux
+chmod +x setup_database.sh
+./setup_database.sh
+
+# Для Windows используйте Git Bash
+```
+
+#### Ручная настройка:
+
+```bash
+# Создайте БД в PostgreSQL (или используйте существующую 'postgres')
 psql -U postgres
-CREATE DATABASE hotel_booking;
+CREATE DATABASE postgres;
 \q
 
-# Выполните скрипты инициализации
-psql -U postgres -d hotel_booking -f database/init_schema.sql
-psql -U postgres -d hotel_booking -f database/functions.sql
-psql -U postgres -d hotel_booking -f database/triggers.sql
-psql -U postgres -d hotel_booking -f database/views.sql
-psql -U postgres -d hotel_booking -f database/test_data.sql
+# Выполните скрипты инициализации по порядку
+psql -U postgres -d postgres -f database/init_schema.sql
+psql -U postgres -d postgres -f database/01_migration_add_users.sql
+psql -U postgres -d postgres -f database/02_triggers.sql
+psql -U postgres -d postgres -f database/03_views.sql
+psql -U postgres -d postgres -f database/04_functions.sql
+psql -U postgres -d postgres -f database/05_test_data.sql
 ```
+
+**Все SQL-скрипты находятся в папке `database/` и ВХОДЯТ В РЕПОЗИТОРИЙ.**
 
 ### 3. Настройка backend
 
