@@ -39,7 +39,6 @@ class HotelResponse(HotelBase):
     hotel_id: int
     admin_id: Optional[int]
     is_active: bool
-    created_at: datetime
     average_rating: Optional[float] = None
     reviews_count: Optional[int] = 0
     total_rooms: Optional[int] = 0

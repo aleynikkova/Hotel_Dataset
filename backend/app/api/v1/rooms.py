@@ -38,18 +38,14 @@ class RoomCreateRequest(BaseModel):
     roomtype_id: int
     room_number: str
     floor: Optional[int] = None
-    price_per_night: float
     is_available: bool = True
-    description: Optional[str] = None
     amenity_ids: Optional[List[int]] = []
 
 class RoomUpdateRequest(BaseModel):
     roomtype_id: Optional[int] = None
     room_number: Optional[str] = None
     floor: Optional[int] = None
-    price_per_night: Optional[float] = None
     is_available: Optional[bool] = None
-    description: Optional[str] = None
     amenity_ids: Optional[List[int]] = None
 
 router = APIRouter(prefix="/rooms")
@@ -64,7 +60,10 @@ async def get_room(
     
     result = await db.execute(
         select(Room)
-        .options(selectinload(Room.amenities))
+        .options(
+            selectinload(Room.amenities),
+            selectinload(Room.room_type)
+        )
         .where(Room.room_id == room_id)
     )
     room = result.scalar_one_or_none()
@@ -83,7 +82,10 @@ async def get_hotel_rooms(
     """Получить все комнаты отеля с удобствами (фильтрация только по типу)"""
     from sqlalchemy.orm import selectinload
     
-    query = select(Room).options(selectinload(Room.amenities)).where(Room.hotel_id == hotel_id)
+    query = select(Room).options(
+        selectinload(Room.amenities),
+        selectinload(Room.room_type)
+    ).where(Room.hotel_id == hotel_id)
     
     if roomtype_id:
         query = query.where(Room.roomtype_id == roomtype_id)
@@ -100,6 +102,14 @@ async def create_room(
     current_user: User = Depends(require_role(UserRole.hotel_admin, UserRole.system_admin))
 ):
     """Создать новую комнату (только для администраторов отеля)"""
+    # Проверка прав: hotel_admin может создавать номера только для своего отеля
+    if current_user.role == UserRole.hotel_admin:
+        if current_user.hotel_id != room_data.hotel_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Вы можете создавать номера только для своего отеля"
+            )
+    
     new_room = Room(**room_data.model_dump(exclude={'amenity_ids'}))
     db.add(new_room)
     await db.flush()
@@ -115,7 +125,18 @@ async def create_room(
             )
     
     await db.commit()
-    await db.refresh(new_room)
+    
+    # Загружаем созданную комнату с amenities
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(Room)
+        .options(
+            selectinload(Room.amenities),
+            selectinload(Room.room_type)
+        )
+        .where(Room.room_id == new_room.room_id)
+    )
+    new_room = result.scalar_one()
     
     return new_room
 
@@ -134,6 +155,14 @@ async def update_room(
     
     if not room:
         raise HTTPException(status_code=404, detail="Комната не найдена")
+    
+    # Проверка прав: hotel_admin может редактировать только номера своего отеля
+    if current_user.role == UserRole.hotel_admin:
+        if current_user.hotel_id != room.hotel_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Вы можете редактировать только номера своего отеля"
+            )
     
     update_data = room_data.model_dump(exclude_unset=True, exclude={'amenity_ids'})
     for field, value in update_data.items():
@@ -155,7 +184,18 @@ async def update_room(
             )
     
     await db.commit()
-    await db.refresh(room)
+    
+    # Загружаем обновленную комнату с amenities
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(Room)
+        .options(
+            selectinload(Room.amenities),
+            selectinload(Room.room_type)
+        )
+        .where(Room.room_id == room_id)
+    )
+    room = result.scalar_one()
     
     return room
 
@@ -173,6 +213,14 @@ async def delete_room(
     
     if not room:
         raise HTTPException(status_code=404, detail="Комната не найдена")
+    
+    # Проверка прав: hotel_admin может удалять только номера своего отеля
+    if current_user.role == UserRole.hotel_admin:
+        if current_user.hotel_id != room.hotel_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Вы можете удалять только номера своего отеля"
+            )
     
     # Проверяем, есть ли активные бронирования
     bookings_result = await db.execute(

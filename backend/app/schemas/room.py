@@ -1,11 +1,11 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from pydantic import BaseModel, Field, model_validator, computed_field
+from typing import Optional, List, Any
 from datetime import datetime
+from decimal import Decimal
 
 class RoomTypeBase(BaseModel):
     type_name: str
     description: Optional[str] = None
-    max_guests: int
 
 class RoomTypeResponse(RoomTypeBase):
     room_type_id: int
@@ -15,7 +15,6 @@ class RoomTypeResponse(RoomTypeBase):
 
 class AmenityBase(BaseModel):
     amenity_name: str
-    description: Optional[str] = None
 
 class AmenityResponse(AmenityBase):
     amenity_id: int
@@ -25,29 +24,25 @@ class AmenityResponse(AmenityBase):
 
 class RoomBase(BaseModel):
     hotel_id: int
-    room_type_id: int
+    roomtype_id: int  # Соответствует полю в БД
     room_number: str
     floor: Optional[int] = None
-    price_per_night: float = Field(gt=0)
     is_available: bool = True
-    description: Optional[str] = None
 
 class RoomCreateRequest(RoomBase):
     amenity_ids: Optional[List[int]] = []
 
 class RoomUpdateRequest(BaseModel):
-    room_type_id: Optional[int] = None
+    roomtype_id: Optional[int] = None
     room_number: Optional[str] = None
     floor: Optional[int] = None
-    price_per_night: Optional[float] = Field(None, gt=0)
     is_available: Optional[bool] = None
-    description: Optional[str] = None
     amenity_ids: Optional[List[int]] = None
 
 class RoomResponse(RoomBase):
     room_id: int
-    created_at: datetime
-    updated_at: datetime
+    price_per_night: Optional[float] = None  # Читается из property модели Room
+    description: Optional[str] = None  # Читается из property модели Room (из room_type)
     
     class Config:
         from_attributes = True

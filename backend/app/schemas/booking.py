@@ -14,7 +14,6 @@ class BookingBase(BaseModel):
     room_id: int
     check_in: date
     check_out: date
-    guests_count: int = Field(ge=1)
     special_requests: Optional[str] = None
     
     @validator('check_out')
@@ -35,8 +34,6 @@ class BookingResponse(BookingBase):
     user_id: int
     total_price: float
     status: str
-    created_at: datetime
-    updated_at: datetime
     
     class Config:
         from_attributes = True

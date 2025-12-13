@@ -12,18 +12,15 @@ from pydantic import BaseModel
 class AmenityResponse(BaseModel):
     amenity_id: int
     amenity_name: str
-    description: Optional[str]
     
     class Config:
         from_attributes = True
 
 class AmenityCreate(BaseModel):
     amenity_name: str
-    description: Optional[str] = None
 
 class AmenityUpdate(BaseModel):
     amenity_name: Optional[str] = None
-    description: Optional[str] = None
 
 router = APIRouter(prefix="/amenities")
 

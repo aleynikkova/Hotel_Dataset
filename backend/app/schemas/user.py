@@ -41,7 +41,6 @@ class UserResponse(UserBase):
     role: UserRole
     is_active: bool
     hotel_id: Optional[int] = None
-    created_at: datetime
     
     class Config:
         from_attributes = True

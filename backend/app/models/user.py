@@ -25,12 +25,9 @@ class User(Base):
     role = Column(SQLEnum(UserRole, name="user_role"), nullable=False, default=UserRole.guest)
     is_active = Column(Boolean, default=True)
     hotel_id = Column(Integer)  # Для привязки hotel_admin к отелю
-    created_at = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
     
     # Relationships
     bookings = relationship("Booking", back_populates="user")
-    reviews = relationship("Review", back_populates="user")
     managed_hotels = relationship("Hotel", back_populates="admin")
     
     @property

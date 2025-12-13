@@ -33,7 +33,6 @@ class ReviewResponse(BaseModel):
     user_id: int
     rating: int
     comment: Optional[str]
-    created_at: datetime
     user: Optional[UserInfo] = None
     
     class Config:
@@ -52,11 +51,11 @@ async def get_hotel_reviews(
     # Получаем отзывы через JOIN с bookings и rooms для фильтрации по hotel_id
     result = await db.execute(
         select(Review)
-        .options(selectinload(Review.user))
+        .options(selectinload(Review.booking).selectinload(Booking.user))
         .join(Booking, Review.booking_id == Booking.booking_id)
         .join(Room, Booking.room_id == Room.room_id)
         .where(Room.hotel_id == hotel_id)
-        .order_by(Review.created_at.desc())
+        .order_by(Review.review_date.desc())
     )
     reviews = result.scalars().all()
     
@@ -68,8 +67,12 @@ async def get_review(
     db: AsyncSession = Depends(get_db)
 ):
     """Получить конкретный отзыв"""
+    from sqlalchemy.orm import selectinload
+    
     result = await db.execute(
-        select(Review).where(Review.review_id == review_id)
+        select(Review)
+        .options(selectinload(Review.booking).selectinload(Booking.user))
+        .where(Review.review_id == review_id)
     )
     review = result.scalar_one_or_none()
     
@@ -138,7 +141,7 @@ async def create_review(
         .join(Room, Booking.room_id == Room.room_id)
         .where(
             and_(
-                Review.user_id == current_user.user_id,
+                Booking.user_id == current_user.user_id,
                 Room.hotel_id == hotel_id
             )
         )
@@ -154,7 +157,6 @@ async def create_review(
     # Создаем отзыв
     new_review = Review(
         booking_id=review_data.booking_id,
-        user_id=current_user.user_id,
         rating=review_data.rating,
         comment=review_data.comment
     )
@@ -162,6 +164,15 @@ async def create_review(
     db.add(new_review)
     await db.commit()
     await db.refresh(new_review)
+    
+    # Загружаем booking с user для возврата в ответе
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(Review)
+        .options(selectinload(Review.booking).selectinload(Booking.user))
+        .where(Review.review_id == new_review.review_id)
+    )
+    new_review = result.scalar_one()
     
     return new_review
 
@@ -173,16 +184,20 @@ async def update_review(
     current_user: User = Depends(get_current_user)
 ):
     """Обновить свой отзыв"""
+    from sqlalchemy.orm import selectinload
+    
     result = await db.execute(
-        select(Review).where(Review.review_id == review_id)
+        select(Review)
+        .options(selectinload(Review.booking))
+        .where(Review.review_id == review_id)
     )
     review = result.scalar_one_or_none()
     
     if not review:
         raise HTTPException(status_code=404, detail="Отзыв не найден")
     
-    # Проверяем, что это отзыв текущего пользователя
-    if review.user_id != current_user.user_id:
+    # Проверяем, что это отзыв текущего пользователя (через booking)
+    if review.booking.user_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="Вы можете редактировать только свои отзывы")
     
     # Обновляем данные
@@ -202,8 +217,12 @@ async def delete_review(
     current_user: User = Depends(get_current_user)
 ):
     """Удалить отзыв"""
+    from sqlalchemy.orm import selectinload
+    
     result = await db.execute(
-        select(Review).where(Review.review_id == review_id)
+        select(Review)
+        .options(selectinload(Review.booking))
+        .where(Review.review_id == review_id)
     )
     review = result.scalar_one_or_none()
     
@@ -211,7 +230,7 @@ async def delete_review(
         raise HTTPException(status_code=404, detail="Отзыв не найден")
     
     # Проверяем права (пользователь может удалять свои отзывы, админы - любые)
-    if review.user_id != current_user.user_id and current_user.role not in ["hotel_admin", "system_admin"]:
+    if review.booking.user_id != current_user.user_id and current_user.role not in ["hotel_admin", "system_admin"]:
         raise HTTPException(status_code=403, detail="Нет доступа к этому отзыву")
     
     await db.delete(review)
@@ -225,10 +244,14 @@ async def get_my_reviews(
     current_user: User = Depends(get_current_user)
 ):
     """Получить все отзывы текущего пользователя"""
+    from sqlalchemy.orm import selectinload
+    
     result = await db.execute(
         select(Review)
-        .where(Review.user_id == current_user.user_id)
-        .order_by(Review.created_at.desc())
+        .options(selectinload(Review.booking).selectinload(Booking.user))
+        .join(Booking, Review.booking_id == Booking.booking_id)
+        .where(Booking.user_id == current_user.user_id)
+        .order_by(Review.review_date.desc())
     )
     reviews = result.scalars().all()
     

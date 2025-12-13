@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from datetime import date, datetime
 from app.core.database import get_db
@@ -15,7 +16,6 @@ class BookingCreateRequest(BaseModel):
     room_id: int
     check_in_date: date
     check_out_date: date
-    guests_count: int = 1
     
     @validator('check_out_date')
     def check_out_after_check_in(cls, v, values):
@@ -42,11 +42,8 @@ class BookingResponse(BaseModel):
     room_id: int
     check_in_date: date
     check_out_date: date
-    guests_count: Optional[int]
     total_price: Optional[float]
     status: str
-    created_at: datetime
-    updated_at: datetime
     
     class Config:
         from_attributes = True
@@ -57,11 +54,8 @@ class BookingWithUserResponse(BaseModel):
     room_id: int
     check_in_date: date
     check_out_date: date
-    guests_count: Optional[int]
     total_price: Optional[float]
     status: str
-    created_at: datetime
-    updated_at: datetime
     user: Optional[UserInfo] = None
     
     class Config:
@@ -81,7 +75,7 @@ async def get_my_bookings(
     if status:
         query = query.where(Booking.status == status)
     
-    query = query.order_by(Booking.created_at.desc())
+    query = query.order_by(Booking.booking_id.desc())
     
     result = await db.execute(query)
     bookings = result.scalars().all()
@@ -116,9 +110,11 @@ async def create_booking(
     current_user: User = Depends(get_current_user)
 ):
     """Создать новое бронирование"""
-    # Проверяем, что комната существует
+    # Проверяем, что комната существует и загружаем room_type
     room_result = await db.execute(
-        select(Room).where(Room.room_id == booking_data.room_id)
+        select(Room)
+        .options(selectinload(Room.room_type))
+        .where(Room.room_id == booking_data.room_id)
     )
     room = room_result.scalar_one_or_none()
     
@@ -164,7 +160,11 @@ async def create_booking(
             detail="Дата выезда должна быть позже даты заезда"
         )
     
-    total_price = room.price_per_night * nights
+    # Получаем цену из типа номера
+    if not room.room_type:
+        raise HTTPException(status_code=500, detail="Не удалось загрузить тип номера")
+    
+    total_price = room.room_type.price_per_night * nights
     
     # Создаем бронирование
     new_booking = Booking(
@@ -173,8 +173,7 @@ async def create_booking(
         check_in_date=booking_data.check_in_date,
         check_out_date=booking_data.check_out_date,
         total_price=total_price,
-        status='pending',
-        guests_count=booking_data.guests_count
+        status='pending'
     )
     
     db.add(new_booking)

@@ -13,7 +13,6 @@ class RoomTypeResponse(BaseModel):
     roomtype_id: int
     type_name: str
     description: Optional[str]
-    max_occupancy: Optional[int]
     price_per_night: Optional[float]
     
     class Config:
@@ -22,13 +21,11 @@ class RoomTypeResponse(BaseModel):
 class RoomTypeCreate(BaseModel):
     type_name: str
     description: Optional[str] = None
-    max_occupancy: Optional[int] = 2
     price_per_night: Optional[float] = None
 
 class RoomTypeUpdate(BaseModel):
     type_name: Optional[str] = None
     description: Optional[str] = None
-    max_occupancy: Optional[int] = None
     price_per_night: Optional[float] = None
 
 router = APIRouter(prefix="/roomtypes")

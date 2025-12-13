@@ -18,8 +18,6 @@ class Hotel(Base):
     description = Column(Text)
     admin_id = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"))
     is_active = Column(Boolean, default=True)
-    created_at = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
     
     # Relationships
     admin = relationship("User", back_populates="managed_hotels")

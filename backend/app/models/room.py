@@ -8,8 +8,7 @@ room_amenities = Table(
     'room_amenities',
     Base.metadata,
     Column('room_id', Integer, ForeignKey('rooms.room_id', ondelete="CASCADE"), primary_key=True),
-    Column('amenity_id', Integer, ForeignKey('amenities.amenity_id', ondelete="CASCADE"), primary_key=True),
-    Column('created_at', TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
+    Column('amenity_id', Integer, ForeignKey('amenities.amenity_id', ondelete="CASCADE"), primary_key=True)
 )
 
 
@@ -21,8 +20,6 @@ class RoomType(Base):
     type_name = Column(String(100), nullable=False)
     description = Column(Text)
     price_per_night = Column(Numeric(10, 2), nullable=False)
-    max_occupancy = Column(Integer, default=2)
-    created_at = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
     
     # Relationships
     rooms = relationship("Room", back_populates="room_type")
@@ -37,17 +34,23 @@ class Room(Base):
     roomtype_id = Column(Integer, ForeignKey("roomtypes.roomtype_id", ondelete="RESTRICT"), nullable=False)
     room_number = Column(String(10), nullable=False)
     floor = Column(Integer)
-    price_per_night = Column(Numeric(10, 2))  # Переопределяет цену из roomtype
     is_available = Column(Boolean, default=True, index=True)
-    description = Column(Text)
-    created_at = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
     
     # Relationships
     hotel = relationship("Hotel", back_populates="rooms")
     room_type = relationship("RoomType", back_populates="rooms")
     amenities = relationship("Amenity", secondary=room_amenities, back_populates="rooms")
     bookings = relationship("Booking", back_populates="room")
+    
+    @property
+    def price_per_night(self):
+        """Цена берется из типа номера (3NF compliance)"""
+        return self.room_type.price_per_night if self.room_type else None
+    
+    @property
+    def description(self):
+        """Описание берется из типа номера (3NF compliance)"""
+        return self.room_type.description if self.room_type else None
 
 
 class Amenity(Base):
@@ -56,9 +59,6 @@ class Amenity(Base):
     
     amenity_id = Column(Integer, primary_key=True, index=True)
     amenity_name = Column(String(255), nullable=False, unique=True)
-    description = Column(Text)
-    icon = Column(String(50))
-    created_at = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
     
     # Relationships
     rooms = relationship("Room", secondary=room_amenities, back_populates="amenities")
