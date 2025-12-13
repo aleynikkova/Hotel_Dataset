@@ -485,11 +485,6 @@ class Hotels {
                                     <input type="date" class="form-control" id="check-out-date" required min="${new Date().toISOString().split('T')[0]}">
                                 </div>
                                 
-                                <div class="mb-3">
-                                    <label for="num-guests" class="form-label">Количество гостей *</label>
-                                    <input type="number" class="form-control" id="num-guests" min="1" max="10" value="1" required>
-                                </div>
-                                
                                 <div id="total-price" class="alert alert-success d-none">
                                     <strong>Итого:</strong> <span id="total-amount">0</span> ₽
                                 </div>
@@ -544,7 +539,6 @@ class Hotels {
             
             const checkIn = document.getElementById('check-in-date').value;
             const checkOut = document.getElementById('check-out-date').value;
-            const guests = parseInt(document.getElementById('num-guests').value);
             const errorDiv = document.getElementById('booking-error');
             
             // Валидация дат
@@ -555,7 +549,7 @@ class Hotels {
             }
             
             try {
-                await bookings.createBooking(roomId, checkIn, checkOut, guests);
+                await bookings.createBooking(roomId, checkIn, checkOut);
                 modal.hide();
                 showSuccess('Бронирование создано! Перенаправление на страницу бронирований...');
                 setTimeout(() => {

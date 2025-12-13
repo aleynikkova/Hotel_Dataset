@@ -162,10 +162,6 @@ class Bookings {
                                         <strong>Ночей:</strong> ${nights}
                                     </p>
                                     <p class="card-text mb-1">
-                                        <i class="bi bi-people me-2 text-warning"></i>
-                                        <strong>Гостей:</strong> ${booking.guests_count || 1}
-                                    </p>
-                                    <p class="card-text mb-1">
                                         <i class="bi bi-cash-stack me-2 text-success"></i>
                                         <strong>Стоимость:</strong> ${parseFloat(booking.total_price || 0).toFixed(0)} ₽
                                     </p>
@@ -415,7 +411,7 @@ class Bookings {
                                 <div class="col-md-6">
                                     <p><i class="bi bi-calendar-check me-2"></i>Заезд: <strong>${checkIn}</strong></p>
                                     <p><i class="bi bi-calendar-x me-2"></i>Выезд: <strong>${checkOut}</strong></p>
-                                    <p><i class="bi bi-people me-2"></i>Гостей: <strong>${booking.number_of_guests || 1}</strong></p>
+
                                 </div>
                                 <div class="col-md-6">
                                     <p><i class="bi bi-cash me-2"></i>Стоимость: <strong>${booking.total_price || 0} ₽</strong></p>
@@ -446,13 +442,12 @@ class Bookings {
         modal.show();
     }
 
-    async createBooking(roomId, checkIn, checkOut, guests, specialRequests = '') {
+    async createBooking(roomId, checkIn, checkOut, specialRequests = '') {
         try {
             const booking = await API.createBooking({
                 room_id: roomId,
                 check_in_date: checkIn,
-                check_out_date: checkOut,
-                guests_count: guests
+                check_out_date: checkOut
             });
             showSuccess('Бронирование создано успешно!');
             return booking;

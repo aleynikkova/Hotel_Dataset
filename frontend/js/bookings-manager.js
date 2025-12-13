@@ -164,10 +164,6 @@ class BookingsManager {
                                             <strong>Ночей:</strong> ${nights}
                                         </p>
                                         <p class="mb-1">
-                                            <i class="bi bi-people me-2"></i>
-                                            <strong>Гостей:</strong> ${booking.guests_count || 1}
-                                        </p>
-                                        <p class="mb-1">
                                             <i class="bi bi-cash me-2"></i>
                                             <strong>Сумма:</strong> ${booking.total_price} ₽
                                         </p>

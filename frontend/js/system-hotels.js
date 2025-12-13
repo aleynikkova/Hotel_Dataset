@@ -218,11 +218,11 @@ class SystemHotels {
 
             if (hotelId) {
                 // Обновление
-                await API.request(`/hotels/${hotelId}`, 'PATCH', hotelData);
+                await API.updateHotel(hotelId, hotelData);
                 showSuccess('Отель успешно обновлен');
             } else {
                 // Создание
-                await API.request('/hotels/', 'POST', hotelData);
+                await API.createHotel(hotelData);
                 showSuccess('Отель успешно добавлен');
             }
 
@@ -243,7 +243,7 @@ class SystemHotels {
 
     async deleteHotel() {
         try {
-            await API.request(`/hotels/${this.currentHotelId}`, 'DELETE');
+            await API.deleteHotel(this.currentHotelId);
             showSuccess('Отель успешно удален');
             this.deleteModal.hide();
             await this.loadHotels();

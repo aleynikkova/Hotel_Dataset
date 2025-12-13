@@ -113,7 +113,6 @@ class HotelAdmin {
                                     <h6>Бронирование #${booking.booking_id}</h6>
                                     <p class="mb-1">Заезд: ${new Date(booking.check_in_date).toLocaleDateString('ru-RU')}</p>
                                     <p class="mb-1">Выезд: ${new Date(booking.check_out_date).toLocaleDateString('ru-RU')}</p>
-                                    <p class="mb-1">Гостей: ${booking.guests_count || 1}</p>
                                     <p class="mb-1">Стоимость: ${booking.total_price} ₽</p>
                                     <span class="badge ${statusBadges[booking.status]}">${this.getStatusText(booking.status)}</span>
                                 </div>
@@ -210,7 +209,6 @@ class HotelAdmin {
                                 <h5>${type.type_name}</h5>
                                 <p class="mb-1">${type.description || ''}</p>
                                 <p class="mb-1">Цена: ${type.price_per_night} ₽/ночь</p>
-                                <p class="mb-1">Макс. гостей: ${type.max_occupancy}</p>
                             </div>
                             <div class="col-md-4 text-end">
                                 <button class="btn btn-sm btn-primary" onclick="hotelAdmin.editRoomType(${type.roomtype_id})">

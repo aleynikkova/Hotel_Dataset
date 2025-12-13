@@ -96,7 +96,7 @@ class API {
     }
     
     static async createHotel(hotelData) {
-        return await this.request('/hotels', {
+        return await this.request('/hotels/', {
             method: 'POST',
             body: JSON.stringify(hotelData)
         });

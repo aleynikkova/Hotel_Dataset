@@ -62,7 +62,7 @@ class RoomsManager {
             const roomTypeSelect = document.getElementById('room-type');
             roomTypeSelect.innerHTML = '<option value="">Выберите тип</option>' +
                 this.roomTypes.map(type => 
-                    `<option value="${type.roomtype_id}">${type.type_name} (до ${type.max_occupancy} чел.)</option>`
+                    `<option value="${type.roomtype_id}">${type.type_name}</option>`
                 ).join('');
             
             // Заполняем фильтр
@@ -233,7 +233,6 @@ class RoomsManager {
         document.getElementById('room-number').value = room.room_number;
         document.getElementById('room-floor').value = room.floor || '';
         document.getElementById('room-type').value = room.roomtype_id;
-        document.getElementById('room-price').value = room.price_per_night;
         document.getElementById('room-available').checked = room.is_available;
 
         // Загружаем удобства номера
@@ -259,10 +258,9 @@ class RoomsManager {
         const roomNumber = document.getElementById('room-number').value.trim();
         const floor = document.getElementById('room-floor').value;
         const typeId = document.getElementById('room-type').value;
-        const price = document.getElementById('room-price').value;
         const isAvailable = document.getElementById('room-available').checked;
 
-        if (!roomNumber || !typeId || !price) {
+        if (!roomNumber || !typeId) {
             showError('Заполните все обязательные поля');
             return;
         }
@@ -277,7 +275,6 @@ class RoomsManager {
             room_number: roomNumber,
             floor: floor ? parseInt(floor) : null,
             roomtype_id: parseInt(typeId),
-            price_per_night: parseFloat(price),
             is_available: isAvailable,
             amenity_ids: selectedAmenities
         };
