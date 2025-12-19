@@ -4,7 +4,6 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from .config import settings
 
-# Контекст для хеширования паролей
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
